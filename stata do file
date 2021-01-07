@@ -1,0 +1,47 @@
+clear *
+set more off
+use "D:\people\basma_batna\1\basma.dta"
+sum
+
+
+*long_axis simple start
+summarize long_axis
+return list  // the statistic of interst to be bootstrapped r(mean)
+
+bootstrap r(mean), size(10) reps(10000) seed(12345) saving(bootstraps, replace): summarize short_axis
+ereturn list
+ return list
+
+estat bootstrap, all
+matrix cis = ( e(ci_normal), e(ci_percentile), e(ci_bc))
+matrix l cis 
+matrix list cis, format(%2.1f)
+
+*****************
+
+*loop
+
+postfile boot bias n_ll n_ul b_ll b_ul p_ll p_ul str8 var using "results.dta", replace
+
+foreach var of varlist long_axis-lalo {
+    bootstrap r(mean), size(10) reps(10000) seed(12345) saving(boot_`var', replace): summarize `var'
+    mat bias = e(bias)
+	matrix cis = ( e(ci_normal), e(ci_percentile), e(ci_bc))
+    local n_ll = cis[1,1]
+    local n_ul = cis[2,1]
+    local p_ll = cis[1,2]
+    local p_ul = cis[2,2]
+	local b_ll = cis[1,3]
+    local b_ul = cis[2,3]
+    local bias = bias[1,1]
+    post boot (`bias') (`n_ll') (`n_ul') (`b_ll') (`b_ul') (`p_ll') (`p_ul') ("`var'")
+}
+postclose boot
+
+
+preserve
+use results.dta, clear
+list
+restore
+*****************************************************
+
